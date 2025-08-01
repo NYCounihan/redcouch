@@ -25,13 +25,26 @@ jobs:
 
       - name: Package code
         run: |
-          python -m pip install -r requirements.txt -t package
-          cd package && zip -r ../function.zip . && cd ..
-          zip -g function.zip *.py
+          set -euo pipefail
+
+          # 1. Create a staging dir
+          rm -rf build && mkdir -p build
+
+          # 2. Copy your Python source files
+          cp -v *.py build/                       # adjust path if your .py live elsewhere
+
+          # 3. Install requirements *only if* the file exists and isn’t empty
+          if [ -s requirements.txt ]; then
+            python -m pip install -r requirements.txt -t build
+          fi
+
+          # 4. Zip everything from the staging dir
+          cd build
+          zip -r ../function.zip .
 
       - name: Update Lambda code
         run: |
           aws lambda update-function-code \
-            --function-name redCouch_LamdaFunction \
+            --function-name redCouch_LambdaFunction \
             --zip-file fileb://function.zip \
             --region $AWS_REGION
