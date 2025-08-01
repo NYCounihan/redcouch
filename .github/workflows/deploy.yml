@@ -45,6 +45,6 @@ jobs:
       - name: Update Lambda code
         run: |
           aws lambda update-function-code \
-            --function-name redCouch_LambdaFunction \
+            --function-name redCouch_LamdaFunction \
             --zip-file fileb://function.zip \
             --region $AWS_REGION
