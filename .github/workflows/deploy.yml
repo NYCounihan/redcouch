@@ -31,7 +31,7 @@ jobs:
           rm -rf build && mkdir -p build
 
           # 2. Copy your Python source files
-          cp -v *.py build/                       # adjust path if your .py live elsewhere
+          cp -v *.py build/
 
           # 3. Install requirements *only if* the file exists and isn’t empty
           if [ -s requirements.txt ]; then
