@@ -2,57 +2,68 @@ name: Deploy to Lambda
 
 on:
   push:
-    branches: [ master ]          # adjust if needed
+    branches: [ master ]         # run on your master branch
 
 permissions:
-  id-token: write               # OIDC token
+  id-token: write                # needed for OIDC
   contents: read
+
+env:
+  AWS_REGION: us-east-2          # the region where redCouch_LamdaFunction lives
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION: us-east-2    
 
     steps:
-      - uses: actions/checkout@v4
+    # 1️⃣  Pull the code
+    - uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
-          aws-region: ${{ env.AWS_REGION }}
+    # 2️⃣  Get short-lived AWS creds via OIDC
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        aws-region: ${{ env.AWS_REGION }}
 
-      - name: Package code
-        run: |
-          set -euo pipefail
+    # 3️⃣  Build a deployment zip (code + deps)
+    - name: Package Lambda code
+      run: |
+        set -euo pipefail
+        rm -rf build && mkdir -p build
 
-          # 1. Create a staging dir
-          rm -rf build && mkdir -p build
-
-          # 2. Copy your Python source files
+        # copy Python sources (adjust path if your code lives elsewhere)
+        if ls *.py >/dev/null 2>&1; then
           cp -v *.py build/
+        fi
 
-          # 3. Install requirements *only if* the file exists and isn’t empty
-          if [ -s requirements.txt ]; then
-            python -m pip install -r requirements.txt -t build
-          fi
+        # install dependencies only if requirements.txt exists and is non-empty
+        if [ -s requirements.txt ]; then
+          python -m pip install -r requirements.txt -t build
+        fi
 
-          # 4. Zip everything from the staging dir
-          cd build
-          zip -r ../function.zip .
+        cd build
+        zip -r ../function.zip .
 
-      - name: Update Lambda code
-        run: |
-          aws lambda update-function-code \
-            --function-name redCouch_LamdaFunction \
-            --zip-file fileb://function.zip \
-            --region $AWS_REGION
+    # 4️⃣  Upload the new code
+    - name: Update Lambda code
+      run: |
+        aws lambda update-function-code \
+          --function-name redCouch_LamdaFunction \
+          --zip-file fileb://function.zip \
+          --region $AWS_REGION
 
-      - name: Update Lambda environment variables
-        run: |
-          aws lambda update-function-configuration \
-            --function-name redCouch_LamdaFunction \
-            --environment "Variables={DB_HOST=${{ secrets.DB_HOST }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASS=${{ secrets.DB_PASS }},DB_NAME=${{ secrets.DB_NAME }}}" \
-            --region $AWS_REGION
+    # 5️⃣  Wait until the code update finishes (avoids ResourceConflictException)
+    - name: Wait until code update is finished
+      run: |
+        aws lambda wait function-updated \
+          --function-name redCouch_LamdaFunction \
+          --region $AWS_REGION
 
+    # 6️⃣  Inject DB connection secrets as environment variables
+    - name: Update Lambda environment variables
+      run: |
+        aws lambda update-function-configuration \
+          --function-name redCouch_LamdaFunction \
+          --environment "Variables={DB_HOST=${{ secrets.DB_HOST }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASS=${{ secrets.DB_PASS }},DB_NAME=${{ secrets.DB_NAME }}}" \
+          --region $AWS_REGION
