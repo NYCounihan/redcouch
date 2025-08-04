@@ -42,8 +42,19 @@ jobs:
           python -m pip install -r requirements.txt -t build
         fi
 
+        # always build wheels compatible with Lambda (AL2, Python 3.12, x86_64)
+        if [ -s requirements.txt ]; then
+          pip install -r requirements.txt \
+              --platform manylinux_2_28_x86_64 \
+              --python-version 3.12 \
+              --only-binary=:all: \
+              --upgrade -t build
+        fi
+
         cd build
         zip -r ../function.zip .
+
+    
 
     # 4️⃣  Upload the new code
     - name: Update Lambda code
@@ -67,3 +78,5 @@ jobs:
           --function-name redCouch_LamdaFunction \
           --environment "Variables={DB_HOST=${{ secrets.DB_HOST }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASS=${{ secrets.DB_PASS }},DB_NAME=${{ secrets.DB_NAME }}}" \
           --region $AWS_REGION
+
+
