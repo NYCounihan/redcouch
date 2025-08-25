@@ -45,7 +45,7 @@ jobs:
         # always build wheels compatible with Lambda (AL2, Python 3.12, x86_64)
         if [ -s requirements.txt ]; then
           pip install -r requirements.txt \
-              --platform manylinux_2_28_x86_64 \
+              --platform manylinux_2_17_x86_64
               --python-version 3.11 \
               --only-binary=:all: \
               --upgrade -t build
