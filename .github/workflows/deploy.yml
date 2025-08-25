@@ -26,6 +26,11 @@ jobs:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
         aws-region: ${{ env.AWS_REGION }}
 
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+
     # 3️⃣  Build a deployment zip (code + deps)
     - name: Package Lambda code
       run: |
@@ -35,11 +40,6 @@ jobs:
         # copy Python sources (adjust path if your code lives elsewhere)
         if ls *.py >/dev/null 2>&1; then
           cp -v *.py build/
-        fi
-
-        # install dependencies only if requirements.txt exists and is non-empty
-        if [ -s requirements.txt ]; then
-          python -m pip install -r requirements.txt -t build
         fi
 
         # always build wheels compatible with Lambda (AL2, Python 3.12, x86_64)
