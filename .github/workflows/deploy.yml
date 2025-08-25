@@ -46,7 +46,7 @@ jobs:
         if [ -s requirements.txt ]; then
           pip install -r requirements.txt \
               --platform manylinux_2_28_x86_64 \
-              --python-version 3.12 \
+              --python-version 3.11 \
               --only-binary=:all: \
               --upgrade -t build
         fi
