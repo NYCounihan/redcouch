@@ -1,2 +1,2 @@
-psycopg2-binary>=2.9.7,<2.10
+pg8000==1.30.5
 flask

@@ -1,19 +1,19 @@
 import json
 import logging
-import os                                    # ← NEW
-import psycopg2                              # ← NEW
-from psycopg2.extras import RealDictCursor   # ← NEW
+import os
+import pg8000
+from pg8000.native import Connection
 
 # -------------------------------------------------------------------
 # Build a portable Postgres DSN from environment variables (no AWS SDK)
 # -------------------------------------------------------------------
-DSN = (
-    f"host={os.environ['DB_HOST']} "
-    f"port={os.getenv('DB_PORT', '5432')} "
-    f"user={os.environ['DB_USER']} "
-    f"password={os.environ['DB_PASS']} "
-    f"dbname={os.getenv('DB_NAME', 'postgres')}"
-)
+DB_CONFIG = {
+    'host': os.environ['DB_HOST'],
+    'port': int(os.getenv('DB_PORT', '5432')),
+    'user': os.environ['DB_USER'],
+    'password': os.environ['DB_PASS'],
+    'database': os.getenv('DB_NAME', 'postgres')
+}
 
 # -------------------------------------------------------------------
 # Helper that ensures the table exists and inserts one greeting row
@@ -23,28 +23,36 @@ def insert_greeting(message: str) -> dict:
     Ensures 'greetings' table exists and inserts one row.
     Returns dict with inserted id and timestamp and current total rows.
     """
-    with psycopg2.connect(DSN) as conn, conn.cursor(cursor_factory=RealDictCursor) as cur:
-        cur.execute("""
+    conn = Connection(**DB_CONFIG)
+    try:
+        # Create table if it doesn't exist
+        conn.run("""
             CREATE TABLE IF NOT EXISTS greetings (
                 id  SERIAL PRIMARY KEY,
                 msg TEXT NOT NULL,
                 ts  TIMESTAMPTZ DEFAULT now()
             )
         """)
-        cur.execute(
-            "INSERT INTO greetings (msg) VALUES (%s) RETURNING id, ts",
-            (message,)
+        
+        # Insert greeting
+        result = conn.run(
+            "INSERT INTO greetings (msg) VALUES (:msg) RETURNING id, ts",
+            msg=message
         )
-        inserted = cur.fetchone()
+        inserted_id = result[0][0]
+        inserted_ts = result[0][1]
 
-        cur.execute("SELECT COUNT(*) AS total FROM greetings")
-        total_rows = cur.fetchone()["total"]
+        # Get total count
+        count_result = conn.run("SELECT COUNT(*) FROM greetings")
+        total_rows = count_result[0][0]
 
-    return {
-        "inserted_id": inserted["id"],
-        "inserted_at": inserted["ts"].isoformat(),
-        "total_rows": total_rows
-    }
+        return {
+            "inserted_id": inserted_id,
+            "inserted_at": inserted_ts.isoformat(),
+            "total_rows": total_rows
+        }
+    finally:
+        conn.close()
 
 # -------------------------------------------------------------------
 # Configure logging (unchanged)
