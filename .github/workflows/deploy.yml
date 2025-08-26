@@ -72,7 +72,7 @@ jobs:
       run: |
         aws lambda update-function-configuration \
           --function-name redCouch_LamdaFunction \
-          --environment "Variables={DB_HOST=${{ secrets.DB_HOST }},DB_PORT=${{ secrets.DB_PORT }},DB_USER=${{ secrets.DB_USER }},DB_PASS=${{ secrets.DB_PASS }},DB_NAME=${{ secrets.DB_NAME }}}" \
+          --environment "Variables={DB_PROXY_ENDPOINT=${{ secrets.DB_PROXY_ENDPOINT }}}" \
           --region $AWS_REGION
 
 
