@@ -67,6 +67,15 @@ jobs:
           --function-name redCouch_LamdaFunction \
           --region $AWS_REGION
 
+    # 5.5. Update Lambda timeout and memory
+    - name: Update Lambda configuration
+      run: |
+        aws lambda update-function-configuration \
+          --function-name redCouch_LamdaFunction \
+          --timeout 30 \
+          --memory-size 256 \
+          --region $AWS_REGION
+
     # 6️⃣  Inject DB connection secrets as environment variables
     - name: Update Lambda environment variables
       run: |
