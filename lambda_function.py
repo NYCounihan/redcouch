@@ -1,19 +1,63 @@
 import json
 import logging
 import os
+import boto3
 import pg8000
 from pg8000.native import Connection
 
 # -------------------------------------------------------------------
-# Build a portable Postgres DSN from environment variables (no AWS SDK)
+# Get database credentials from AWS Secrets Manager
 # -------------------------------------------------------------------
-DB_CONFIG = {
-    'host': os.environ['DB_HOST'],
-    'port': int(os.getenv('DB_PORT', '5432')),
-    'user': os.environ['DB_USER'],
-    'password': os.environ['DB_PASS'],
-    'database': os.getenv('DB_NAME', 'postgres')
-}
+def get_db_credentials():
+    """Get database credentials from AWS Secrets Manager"""
+    secret_name = "rds-db-credentials/redcouchdb/firstuser/1756179484889-Tz16wN"
+    region_name = "us-east-2"
+    
+    session = boto3.session.Session()
+    client = session.client(
+        service_name='secretsmanager',
+        region_name=region_name
+    )
+    
+    try:
+        get_secret_value_response = client.get_secret_value(
+            SecretId=secret_name
+        )
+    except Exception as e:
+        logging.error(f"Error getting secret: {e}")
+        raise
+    
+    if 'SecretString' in get_secret_value_response:
+        secret = json.loads(get_secret_value_response['SecretString'])
+        return secret
+    else:
+        raise ValueError("Secret not found in expected format")
+
+# -------------------------------------------------------------------
+# Build database connection using RDS Proxy
+# -------------------------------------------------------------------
+def get_db_connection():
+    """Get database connection using RDS Proxy"""
+    try:
+        credentials = get_db_credentials()
+        
+        # Use RDS Proxy endpoint (you'll need to get this from AWS Console)
+        # Go to RDS Console → Proxies → proxy-1756179484889-redcouchdb → Endpoint
+        proxy_endpoint = os.environ.get('DB_PROXY_ENDPOINT', 'your-proxy-endpoint-here')
+        
+        conn = Connection(
+            host=proxy_endpoint,
+            port=5432,
+            user=credentials['username'],
+            password=credentials['password'],
+            database=credentials['dbname'],
+            ssl_context=False,
+            timeout=10
+        )
+        return conn
+    except Exception as e:
+        logging.error(f"Error creating database connection: {e}")
+        raise
 
 # -------------------------------------------------------------------
 # Helper that ensures the table exists and inserts one greeting row
@@ -23,7 +67,7 @@ def insert_greeting(message: str) -> dict:
     Ensures 'greetings' table exists and inserts one row.
     Returns dict with inserted id and timestamp and current total rows.
     """
-    conn = Connection(**DB_CONFIG)
+    conn = get_db_connection()
     try:
         # Create table if it doesn't exist
         conn.run("""
