@@ -10,6 +10,7 @@ from pg8000.native import Connection
 # -------------------------------------------------------------------
 def get_db_credentials():
     """Get database credentials from AWS Secrets Manager"""
+    logger.info("Starting to get database credentials from Secrets Manager")
     secret_name = "rds-db-credentials/redcouchdb/firstuser/1756179484889-Tz16wN"
     region_name = "us-east-2"
     
@@ -20,15 +21,18 @@ def get_db_credentials():
     )
     
     try:
+        logger.info(f"Attempting to get secret: {secret_name}")
         get_secret_value_response = client.get_secret_value(
             SecretId=secret_name
         )
+        logger.info("Successfully retrieved secret from Secrets Manager")
     except Exception as e:
-        logging.error(f"Error getting secret: {e}")
+        logger.error(f"Error getting secret: {e}")
         raise
     
     if 'SecretString' in get_secret_value_response:
         secret = json.loads(get_secret_value_response['SecretString'])
+        logger.info("Successfully parsed secret data")
         return secret
     else:
         raise ValueError("Secret not found in expected format")
@@ -39,12 +43,16 @@ def get_db_credentials():
 def get_db_connection():
     """Get database connection using RDS Proxy"""
     try:
+        logger.info("Starting database connection process")
         credentials = get_db_credentials()
+        logger.info("Got credentials, now getting proxy endpoint")
         
         # Use RDS Proxy endpoint (you'll need to get this from AWS Console)
         # Go to RDS Console → Proxies → proxy-1756179484889-redcouchdb → Endpoint
         proxy_endpoint = os.environ.get('DB_PROXY_ENDPOINT', 'your-proxy-endpoint-here')
+        logger.info(f"Using proxy endpoint: {proxy_endpoint}")
         
+        logger.info("Attempting to create database connection")
         conn = Connection(
             host=proxy_endpoint,
             port=5432,
@@ -54,9 +62,10 @@ def get_db_connection():
             ssl_context=False,
             timeout=10
         )
+        logger.info("Database connection established successfully")
         return conn
     except Exception as e:
-        logging.error(f"Error creating database connection: {e}")
+        logger.error(f"Error creating database connection: {e}")
         raise
 
 # -------------------------------------------------------------------

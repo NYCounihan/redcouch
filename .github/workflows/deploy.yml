@@ -76,6 +76,13 @@ jobs:
           --memory-size 256 \
           --region $AWS_REGION
 
+    # 5.6. Wait until configuration update finishes
+    - name: Wait until configuration update is finished
+      run: |
+        aws lambda wait function-updated \
+          --function-name redCouch_LamdaFunction \
+          --region $AWS_REGION
+
     # 6️⃣  Inject DB connection secrets as environment variables
     - name: Update Lambda environment variables
       run: |
