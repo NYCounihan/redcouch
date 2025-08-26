@@ -48,6 +48,7 @@ jobs:
             --platform manylinux_2_17_x86_64 \
             --python-version 3.11 \
             --implementation cp \
+            --no-deps \
             --upgrade -t build
         fi
 
